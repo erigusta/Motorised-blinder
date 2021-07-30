@@ -3,5 +3,5 @@
 
 Made by Erik Gustavsson unless otherwise specified. 
 
-This work is licensed under a Creative Commons Attribution-NonCommercial 3.0 Unported License.
-https://creativecommons.org/licenses/by-nc/3.0/
+Use is restricted by Creative Common NonCommercial-ShareAlike 4.0
+https://creativecommons.org/licenses/by-nc-sa/4.0/
