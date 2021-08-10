@@ -1,4 +1,3 @@
-// WIP reduce global var, propper usage func, #define stuff added 2 buttons on the weebserver
 // Steppper motor library and servo library
 #include <Servo.h>
 #include <Stepper.h>
@@ -16,35 +15,32 @@ Servo Rotater;
 // initialise DHT
 DHT dht(DHTPIN, DHTTYPE);
 // ip config stuff, change to fit your setup
-IPAddress local_IP(192, 168, 1, 25);
+IPAddress local_IP(192, 168, 1, 25);//local FIXED IP!
 IPAddress gateway(192, 168, 1, 1);
 IPAddress subnet(255, 255, 0, 0);
 IPAddress primaryDNS(192, 168, 1, 1);
 IPAddress SecondaryDNS(192, 168, 1, 1);
 
 // wifi, config your own. " insert your ssid here", " inserty your pswd here "
-String apiKey = "api-key-here";
-const char* ssid     = "ssid-here";
-const char* password = "pswd-here";
+String apiKey = "API_KEY";
+const char* ssid     = "SSID";
+const char* password = "PSWD";
 const char* IOTServer = "api.thingspeak.com";// if using another server change this..
 
-// changes from gloal varialbes to testing them as macros....
-#define windowheight 1000 // test
+#define windowheight 100 // test
 #define advancedAngleFromTemp 0//test
 
 // for HTTP request (not recomended with http but it will do for now on "safe" local networks)
 WiFiServer server(80);
-// to store header (http stuff) for passing data
+// to store header (http stuff)
 String header;
 // to manage timout
 unsigned long currentTime = millis();
 unsigned long previousTime = 0;
 const long timeoutTime = 3000;
 
-// sensor stuff // changed ...
+// sensor stuff
 const int photoR = A0;
-//const int Contact1 = 16;//Using pin
-//#define photoR = A0
 #define Contact1 16
 
 float h = 0;// dht humidity CHANGE?
@@ -70,10 +66,11 @@ NTPClient timeClient(ntpUDP, "pool.ntp.org");
 #define  openTimeH  9
 #define openTimeM  30
 
+
 int statusBlinder = 0;// 1 is closed
 #define breakMaxTemperature 30
 #define breakMinTemperature 25
-// webpage in program memmory (ADD LATER IF TIME REMAINS)- store in flash, can send with client.println(webpage)
+// webpage in program memmory (Future change)- store in flash, can send with client.println(webpage)
 // R"=== to enable it to be stored propperly but in spererate lines
 //char webpage[] PROGMEM = R"=====(
 //
@@ -86,14 +83,31 @@ String buttonwebb2;
 int windowSstatus = 0;
 int rotatedAngle = 0;
 
- void blinderMove(int rotate, int blinder){
+void homeing(){
   digitalWrite(servoSwappPin,LOW);
+  delay(100);
+  closer.attach(4);
+  closer.write(30);
+  delay(1000);
+ int buttonState1 = updateContact();
+  while(buttonState1!=1){
+    stepperTest(5);
+    buttonState1 = updateContact();
+    }
+
+  delay(1000);
+  closer.write(90);
+  delay(1000);
+}
+
+ void blinderMove(int rotate, int blinder){
+  digitalWrite(servoSwappPin,HIGH);
   delay(100);
   closer.attach(4);
   closer.write(180);// move servo
   delay(1000);
   // blocker disabled, now time to move to height
-  int steps = stepsPerRevolution * StepsperMM * blinder;
+  //int steps = stepsPerRevolution * StepsperMM * blinder;
   stepperTest(blinder);
   Serial.println("Servo ready");
 
@@ -102,15 +116,15 @@ int rotatedAngle = 0;
 
   //close it
   closer.attach(4);
-  closer.write(0);// move servo
+  closer.write(-90);// move servo
   delay(1000);
   Serial.println("Close");
   // rotating part
-  digitalWrite(servoSwappPin,HIGH);
+  digitalWrite(servoSwappPin,LOW);
   delay(100);
   Serial.println(" rotator");
   Rotater.attach(4);
-  delay(100);
+  delay(1000);
   Rotater.write(rotate);// move servos
   delay(1000);
 
@@ -136,7 +150,7 @@ int rotatedAngle = 0;
   int positionServo = 0;
   int light = updateLight();
   Serial.println("Loop st");
-  while (positionServo<180){
+  while (positionServo<240){
     delay(200);
     updateLight();
     if (light > maxligth && a>0){
@@ -144,15 +158,22 @@ int rotatedAngle = 0;
       angleatmaxlight = positionServo;
       }
      else if (light < maxligth && a<0){
-      maxligth = light;//in this case shoul be min light
+      maxligth = light;//variable should have name repeating varying with +-a
       angleatmaxlight = positionServo;
       }
      positionServo = positionServo +10;
      Rotater.write(positionServo);
     }
     Serial.println("Done adv rotara");
+    if ( a > 0){
+      Rotater.write(angleatmaxlight);
+
+      }
+    else if(a<0){
     Rotater.write(angleatmaxlight);
     delay(500);
+    }
+    Serial.println("angleatmaxlight"+ angleatmaxlight);
   }
 
 
@@ -170,14 +191,14 @@ void sensorDebug(){
   int buttonState1 = updateContact();
   int light = updateLight();
   updateDHT();
-  //Serial.println("light = ");
-  //Serial.println(light);
-  //Serial.println("Contact status");
-  //Serial.println(buttonState1);
-  //Serial.println("humidity");
-  //Serial.println(h);
-  //Serial.println("Temp");
-  //Serial.println(t);
+  Serial.println("light = ");
+  Serial.println(light);
+  Serial.println("Contact status");
+  Serial.println(buttonState1);
+  Serial.println("humidity");
+  Serial.println(h);
+  Serial.println("Temp");
+  Serial.println(t);
 
   delay(1000);
   }
@@ -186,27 +207,28 @@ void updateDHT(){
   h = dht.readHumidity();
   t = dht.readTemperature();
   // checking values
-  //if (isnan(h) || isnan(t)) {
-  // Serial.println(F("Error with DHT sensor"));
-  //  return;
-  // }
+  if (isnan(h) || isnan(t)) {
+    //Serial.println(F("Error with DHT sensor"));
+    return;
+    }
   }
 
-void updateAll(){ // not used ? can remove?
+void updateAll(){
+	//old test function
   updateDHT();
   //updateLight();
   updateContact();
  }
 
+
 void servotest(){
   digitalWrite(servoSwappPin,LOW);
   delay(100);
   closer.attach(4);
-  closer.write(30);// move servos to center position -> 60°
+  closer.write(30);
   delay(1000);
-  closer.write(90);// move servos to center position -> 60°
+  closer.write(90);
   delay(1000);
-  //test the other servo
   digitalWrite(servoSwappPin,HIGH);
   delay(100);
   Rotater.attach(4);
@@ -224,10 +246,12 @@ void stepperTest(int a){
   //myStepper.step(stepsPerRevolution * a);
   delay(500);
   //myStepper.step(-stepsPerRevolution);
+
+
   }
 
 void setup() {
-  // if changing this use https://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/readme.html for setup
+  // if changeing this use https://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/readme.html for setup
   Serial.begin(115200);
   Serial.println(" ");
   Serial.print("Connecting to : ");
@@ -248,7 +272,7 @@ void setup() {
   Serial.println(WiFi.localIP());
   server.begin();
 
-  // sensor
+  // sensor init
   pinMode(photoR, INPUT);
   pinMode(Contact1, INPUT);
   // start dht 11
@@ -257,8 +281,7 @@ void setup() {
   dht.begin();
 
   // start ntp client
-   timeClient.setTimeOffset(2);
-// due stocholm timezone, could in theory have if and geting month to add or subtract for winter time.. (could be done with checkin date...
+   timeClient.setTimeOffset(2); // due stocholm timezone, could in theory have if and geting month to add or subtract for winter time..
    // only needs secounds...
   timeClient.begin();
 
@@ -270,22 +293,20 @@ void setup() {
 }
 
 
-
 void loop() {
   delay(100);
   int currentSecond = timeClient.getSeconds();
 
   // webserver stuff
  WiFiClient client = server.available();
-  if (client) {                             // So when a client connencts to the web server
+  if (client) {                             // So when a client connects to the web server
     currentTime = millis();                 // update times for timeout checking...
     previousTime = currentTime;
-    Serial.println("New Client.");
-    String currentLine = "";
-    // data from the client
+    Serial.println("New Client.");          // data...
+    String currentLine = "";                // make a String to hold incoming data from the client
     int timeoutmaybe = currentTime - previousTime;
     while (client.connected() && timeoutmaybe < timeoutTime) {
-      // loops when connected
+      // loops when connected =
       currentTime = millis();
 
       if (client.available()) {             // if there's bytes to read from the client,
@@ -293,7 +314,7 @@ void loop() {
         char c = client.read(); // bunch of data from client
         Serial.write(c);
          header += c;
-        if (c == '\n') {                    //  newline character
+        if (c == '\n') {                    // if the byte is a newline character
           // blank?= 2st new line char ( end of http)
           if (currentLine.length() == 0) {
             // client print line esentially send a a file row by row to the client to display...
@@ -317,12 +338,12 @@ void loop() {
             if (header.indexOf("GET /2/open") >= 0) {
               Serial.println("It is upp or opening b2 ");
               buttonwebb2 = "open";
-              blinderMove(90,0);
+              blinderMove(180,windowheight);
             }
             else if (header.indexOf("GET /2/closed") >= 0) {
               Serial.println("It is down or closing b2");
               buttonwebb2 = "closed";
-              blinderMove(0,100);
+              blinderMove(0,-windowheight);
             }
 
 
@@ -345,14 +366,16 @@ void loop() {
             client.println(".button2 {background-color: #0a5f8a;}</style></head>");
 
 
-            // adds toggle buttons...
-            client.println("<p>Button State " + buttonWebb + "</p>");
+
+            client.println("<p>Button 1 - toggle advanced rotate </p>");
             if (buttonWebb=="down") {
               client.println("<p><a href=\"/1/upp\"><button class=\"button\">upp</button></a></p>");
             }
             else {
-              client.println("<p><a href=\"/1/down\"><button class=\"button button2\">down</button></a></p>");
+              client.println("<p><a href=\"/1/down\"><button class=\"button button2\">close</button></a></p>");
             }
+            client.println("<p>Button 2 - Lower / raise" "</p>");
+
             //here
             if (buttonwebb2=="closed") {
               client.println("<p><a href=\"/2/open\"><button class=\"button\">upp</button></a></p>");
@@ -381,13 +404,17 @@ void loop() {
             client.print(h);
             client.println(" percent.</p>");
 
-            client.print("Current windowSstatus status ");
-            client.println(windowSstatus);
-            client.print(".</p>");
+            //client.print("Current windowSstatus status ");
+            //client.println(windowSstatus);
+            //client.print(".</p>");
 
-            client.print("Current rotatedAngle status ");
-            client.print(rotatedAngle);
-            client.print(".</p>");
+
+            //client.print("Current rotatedAngle status ");
+            //client.print(rotatedAngle);
+            //client.print(".</p>");
+
+
+
 
             if (advancedAngleFromTemp == 0 ){
              client.print(" Temperature limited angeling is disabled");
@@ -399,32 +426,32 @@ void loop() {
              client.print(".</p>");
              client.print("BreakMaxTemperature : ");
              client.print(breakMaxTemperature);
-              client.print("BreakMinTemperature : ");
+             client.print("BreakMinTemperature : ");
              client.print(breakMinTemperature );
              client.print(".</p>");
               }
 
-          //  ends with more blank
+
+
+
+          // The HTTP ends with +blank line
             client.println();
-            // done, breaks out
             break;
           } else { // if you got a newline, then clear currentLine
             currentLine = "";
           }
-        } else if (c != '\r') {  // ! carrage return
-          currentLine += c;      //append to currentLine
+        } else if (c != '\r') {  // carry char..
+          currentLine += c;      // add it to the end of the currentLine
         }
       }
     }
 
     // reset header
     header = "";
-    // end it
+    // end it ( for when disconnected
     client.stop();
     Serial.println("http disconnected.");
   }
-	//time based stuff
-	//update data to cloud
   else if (currentSecond == 31){
     // the information in this from https://github.com/arduino/tutorials/blob/master/WiFi101ThingSpeakDataUploader/WiFi101ThingSpeakDataUploader.ino , by Helena Bisby <support@arduino.cc>
      //This example code is in the public domain
@@ -436,11 +463,11 @@ void loop() {
         sendStr += String(t);
         sendStr +="&field2=";
         sendStr += String(h);
-        sendStr +="&field3="; // added! this section untill "next comment"
+        sendStr +="&field3="; // added! this section untill next comment
         sendStr += String(rotatedAngle);
         sendStr +="&field4=";
         sendStr += String(windowSstatus / windowheight);
-        sendStr += "\r\n\r\n\r\n\r\n"; // "next coment", this line was slightly altered
+        sendStr += "\r\n\r\n\r\n\r\n";// nextcoment, this line was slightly altered
 
         client.print("POST /update HTTP/1.1\n");
         client.print("Host: api.thingspeak.com\n");
@@ -449,7 +476,7 @@ void loop() {
         client.print("Content-Type: application/x-www-form-urlencoded\n");
         client.print("Content-Length: ");
         client.print(sendStr.length());
-        client.print("\n\n\n\n");// dubbeled ns sequence!
+        client.print("\n\n\n\n");// dubbeled ns sequence! (Added)
         client.print(sendStr);
         Serial.println("%. Send to Thingspeak.");
         Serial.println(currentSecond);
@@ -459,7 +486,6 @@ void loop() {
         //end of the linked by Helena Bisbby
         delay(1000);
     }
-	//check for triggering automations
     else if(currentSecond == 00 && timeClient.getMinutes() == closeTimeM && timeClient.getHours() == closeTimeH && statusBlinder!= 1 && autoMovements != 0){
       // checks time and close
       blinderMove(90,windowheight);
@@ -468,7 +494,7 @@ void loop() {
 
     else if(currentSecond == 00 &&timeClient.getMinutes() == openTimeM && timeClient.getHours() == openTimeH && statusBlinder != 0 && autoMovements != 0){
        // checks time and open
-       blinderMove(0,-windowheight);
+       blinderMove(-90,-windowheight);
     }
     else if (t>breakMaxTemperature && statusBlinder != 0 && advancedAngleFromTemp != 0 && (timeClient.getHours()+1 > openTimeH || timeClient.getHours()< closeTimeH -1 )){
         // yeah, the + and - 1 is a simple limitation, could add more but not neeed
@@ -479,5 +505,4 @@ void loop() {
        advance_rotate(-1);
       }
 
-      delay(100);
 }
