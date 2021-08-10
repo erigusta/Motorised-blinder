@@ -240,10 +240,10 @@ void servotest(){
   }
 void stepperTest(int a){
   //initialse
-  //Stepper myStepper(stepsPerRevolution, 13, 12, 15, 14);
+  Stepper myStepper(stepsPerRevolution, 13, 12, 15, 14);
   // gpio IN4 - 13, IN3 -15, IN2 - 12 , IN1 -14
-  //myStepper.setSpeed(rolePerMinute);
-  //myStepper.step(stepsPerRevolution * a);
+  myStepper.setSpeed(rolePerMinute);
+  myStepper.step(stepsPerRevolution * a);
   delay(500);
   //myStepper.step(-stepsPerRevolution);
 
